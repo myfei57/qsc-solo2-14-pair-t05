@@ -296,10 +296,19 @@ class BrewingService:
         return self.status(batch_id)
 
     def complete_batch(self, batch_id: str, actor: str) -> dict[str, Any]:
-        """完成成熟并释放配额。"""
+        """完成成熟（或过滤合格）并释放配额。"""
 
         batch = self._require_batch(batch_id)
-        self._require_stage(batch, BatchStage.MATURING.value)
+        stage = batch.get("stage")
+        if stage == BatchStage.FILTERING.value:
+            if not batch.get("filter_certificate_id"):
+                raise SequenceError(
+                    "过滤尚未签发合格凭证，不能完成批次",
+                    batch_id=batch_id,
+                    stage=stage,
+                )
+        elif stage != BatchStage.MATURING.value:
+            self._require_stage(batch, BatchStage.MATURING.value)
         now = format_moment(self.clock.now())
         updated = merge_documents(
             batch,
@@ -374,6 +383,11 @@ class BrewingService:
             view["temperature"] = setpoint
         if batch.get("tank_id"):
             view["tank"] = self.tanks.status(str(batch["tank_id"]))
+        if batch.get("filter_run_id") or batch.get("filter_certificate_id"):
+            view["filter"] = {
+                "run_id": batch.get("filter_run_id"),
+                "certificate_id": batch.get("filter_certificate_id"),
+            }
         return view
 
     def list_batches(self, stage: str | None = None) -> list[dict[str, Any]]:

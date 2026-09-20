@@ -65,6 +65,20 @@ ROUTES: tuple[tuple[str, str], ...] = (
     ("POST", "/api/maintenance/cycles/{cycle_id}/advance"),
     ("POST", "/api/maintenance/cycles/{cycle_id}/finish"),
     ("POST", "/api/maintenance/circuits/{circuit_id}/flush"),
+    ("GET", "/api/filtration/units"),
+    ("POST", "/api/filtration/units"),
+    ("GET", "/api/filtration/runs/{run_id}"),
+    ("GET", "/api/filtration/batches/{batch_id}"),
+    ("GET", "/api/filtration/batches/{batch_id}/certificate"),
+    ("POST", "/api/filtration/runs"),
+    ("POST", "/api/filtration/runs/{run_id}/precoat"),
+    ("POST", "/api/filtration/runs/{run_id}/samples"),
+    ("GET", "/api/filtration/runs/{run_id}/advice"),
+    ("POST", "/api/filtration/runs/{run_id}/dose"),
+    ("POST", "/api/filtration/runs/{run_id}/pace"),
+    ("POST", "/api/filtration/runs/{run_id}/backwash"),
+    ("POST", "/api/filtration/runs/{run_id}/finish"),
+    ("POST", "/api/filtration/runs/{run_id}/abort"),
     ("GET", "/api/alarms"),
     ("POST", "/api/alarms/{alarm_id}/ack"),
     ("POST", "/api/alarms/{alarm_id}/resolve"),
@@ -493,6 +507,116 @@ class ApiRouter:
     ) -> dict[str, Any]:
         return self.registry.maintenance.flush_circuit(
             params["circuit_id"], body.get("flow_m3h"), body.get("operator")
+        )
+
+    def _handle_GET_api_filtration_units(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        items = self.registry.filtering.list_units(_first(query, "brewery_id"))
+        return {"units": items, "summary": self.registry.filtration.summary()}
+
+    def _handle_POST_api_filtration_units(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        unit = self.registry.filtration.register_unit(
+            body.get("brewery_id"),
+            body.get("index"),
+            body.get("aid_type"),
+            body.get("area_m2"),
+            body.get("actor"),
+        )
+        return {"unit": unit}
+
+    def _handle_GET_api_filtration_runs_run_id(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.run_status(params["run_id"])
+
+    def _handle_GET_api_filtration_batches_batch_id(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.batch_status(params["batch_id"])
+
+    def _handle_GET_api_filtration_batches_batch_id_certificate(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.certificate_for_batch(params["batch_id"])
+
+    def _handle_POST_api_filtration_runs(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.start_run(
+            body.get("unit_id"),
+            body.get("batch_id"),
+            body.get("target_volume_l"),
+            body.get("actor"),
+            body.get("precoat_g"),
+            pace_hl_h=body.get("pace_hl_h"),
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_precoat(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.confirm_precoat(
+            params["run_id"],
+            body.get("turbidity_ebc"),
+            body.get("dp_bar"),
+            body.get("actor"),
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_samples(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.sample(
+            params["run_id"],
+            body.get("turbidity_ebc"),
+            body.get("dp_bar"),
+            body.get("flow_hl_h"),
+            body.get("cumulative_l"),
+            str(body.get("actor", "auto")),
+        )
+
+    def _handle_GET_api_filtration_runs_run_id_advice(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        interval_l = _first(query, "interval_l")
+        return self.registry.filtration.advise_body_feed(
+            params["run_id"],
+            interval_l=float(interval_l) if interval_l is not None else None,
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_dose(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.dose_body_aid(
+            params["run_id"],
+            body.get("amount_g"),
+            body.get("actor"),
+            basis_g_hl=body.get("basis_g_hl"),
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_pace(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.set_pace(
+            params["run_id"], body.get("pace_hl_h"), body.get("actor")
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_backwash(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.backwash(params["run_id"], body.get("actor"))
+
+    def _handle_POST_api_filtration_runs_run_id_finish(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.finish_run(params["run_id"], body.get("actor"))
+
+    def _handle_POST_api_filtration_runs_run_id_abort(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.abort_run(
+            params["run_id"], body.get("reason"), body.get("actor")
         )
 
     def _handle_GET_api_alarms(

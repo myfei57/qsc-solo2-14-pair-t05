@@ -43,6 +43,18 @@ PAGE_CATALOG: tuple[dict[str, Any], ...] = (
         ],
     },
     {
+        "slug": "filter",
+        "title": "成品过滤",
+        "file": "filter.html",
+        "description": "按浊度与压差控制助剂投加与过滤节奏，结束给出合格结论",
+        "api": [
+            "/api/filtration/runs",
+            "/api/filtration/runs/{run_id}/samples",
+            "/api/filtration/runs/{run_id}/dose",
+            "/api/filtration/runs/{run_id}/finish",
+        ],
+    },
+    {
         "slug": "alarms",
         "title": "告警与审计",
         "file": "alarms.html",

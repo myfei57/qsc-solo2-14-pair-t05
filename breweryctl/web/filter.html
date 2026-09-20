@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>BreweryCtl · 成品过滤</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>BreweryCtl 成品过滤</h1>
+      <nav>
+        <a href="/mash">糖化</a>
+        <a href="/ferment">发酵</a>
+        <a href="/cip">清洗 CIP</a>
+        <a class="active" href="/filter">成品过滤</a>
+        <a href="/alarms">告警与审计</a>
+      </nav>
+    </header>
+    <div class="banner">
+      在制批次 <strong id="banner-batches">-</strong>
+      占用罐体 <strong id="banner-tanks">-</strong>
+      活跃告警 <strong id="banner-alarms">-</strong>
+      闩锁 <strong id="banner-latches">-</strong>
+    </div>
+    <main>
+      <section>
+        <h2>开工：预涂与批次</h2>
+        <label for="filter-unit">过滤机</label>
+        <select id="filter-unit"></select>
+        <label for="filter-batch">成熟批次</label>
+        <select id="filter-batch"></select>
+        <label for="target-volume">目标液量 (L)</label>
+        <input id="target-volume" type="number" value="950" />
+        <label for="precoat-g">预涂助剂 (g)</label>
+        <input id="precoat-g" type="number" value="2400" />
+        <label for="operator">操作员</label>
+        <input id="operator" value="console" />
+        <button
+          onclick="run(async () => { const payload = await apiPost('/api/filtration/runs', { unit_id: value('filter-unit'), batch_id: value('filter-batch'), target_volume_l: numberValue('target-volume'), precoat_g: numberValue('precoat-g'), actor: value('operator') }); element('run-id').value = payload.run.id; await refreshRun(); return payload; }, 'filter-log', refreshRun)"
+        >
+          开始过滤（建立预涂层）
+        </button>
+        <label for="run-id">运行 ID</label>
+        <input id="run-id" placeholder="开始后自动填入，也可手填" />
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/precoat', { turbidity_ebc: numberValue('s-turbidity'), dp_bar: numberValue('s-dp'), actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          预涂循环合格，转入正式过滤
+        </button>
+      </section>
+
+      <section>
+        <h2>采样驱动：浊度 / 压差 / 流量</h2>
+        <label for="s-turbidity">浊度 (EBC)</label>
+        <input id="s-turbidity" type="number" step="0.05" value="0.6" />
+        <label for="s-dp">压差 (bar)</label>
+        <input id="s-dp" type="number" step="0.05" value="0.4" />
+        <label for="s-flow">瞬时流量 (hl/h)</label>
+        <input id="s-flow" type="number" step="1" value="80" />
+        <label for="s-volume">累计液量 (L)</label>
+        <input id="s-volume" type="number" step="10" value="100" />
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/samples', { turbidity_ebc: numberValue('s-turbidity'), dp_bar: numberValue('s-dp'), flow_hl_h: numberValue('s-flow'), cumulative_l: numberValue('s-volume'), actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          上报一次采样
+        </button>
+      </section>
+
+      <section>
+        <h2>助剂与节奏</h2>
+        <button class="secondary" onclick="run(() => apiGet('/api/filtration/runs/' + value('run-id') + '/advice'), 'filter-log')">
+          计算主体加料建议
+        </button>
+        <label for="dose-g">本次实际投加 (g)</label>
+        <input id="dose-g" type="number" step="10" value="400" />
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/dose', { amount_g: numberValue('dose-g'), actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          确认投加
+        </button>
+        <label for="pace">设定节奏 (hl/h)</label>
+        <input id="pace" type="number" step="1" value="80" />
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/pace', { pace_hl_h: numberValue('pace'), actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          设定节奏
+        </button>
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/backwash', { actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          记录反冲洗
+        </button>
+      </section>
+
+      <section>
+        <h2>结束与结论</h2>
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/finish', { actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          结束过滤并判定合格
+        </button>
+        <button
+          onclick="run(() => apiPost('/api/filtration/runs/' + value('run-id') + '/abort', { reason: '后期跑浑无法恢复', actor: value('operator') }), 'filter-log', refreshRun)"
+        >
+          判返工
+        </button>
+        <button class="secondary" onclick="refreshRun()">刷新状态</button>
+        <pre id="run-view">尚未加载</pre>
+      </section>
+
+      <div id="filter-log"></div>
+    </main>
+    <script src="/static/app.js"></script>
+    <script>
+      initFilterPage();
+    </script>
+  </body>
+</html>

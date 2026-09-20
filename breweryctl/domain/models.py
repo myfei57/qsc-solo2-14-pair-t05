@@ -18,6 +18,7 @@ class BatchStage(str, Enum):
     COOLING = "cooling"
     FERMENTING = "fermenting"
     MATURING = "maturing"
+    FILTERING = "filtering"
     COMPLETED = "completed"
     ABORTED = "aborted"
 
@@ -55,6 +56,23 @@ class CipStage(str, Enum):
     ACID = "acid"
     FINAL_RINSE = "final_rinse"
     COMPLETE = "complete"
+
+
+class FilterStage(str, Enum):
+    """成品过滤状态机。"""
+
+    PRECOAT = "precoat"
+    FILTERING = "filtering"
+    DIVERTING = "diverting"
+    PASSED = "passed"
+    REWORK = "rework"
+
+
+class FilterVerdict(str, Enum):
+    """过滤结束判定。"""
+
+    PASS = "pass"
+    REWORK = "rework"
 
 
 class HopStatus(str, Enum):
@@ -343,6 +361,103 @@ class CipCertificate(DocMixin):
 
 
 @dataclass
+class FilterUnit(DocMixin):
+    """过滤机（硅藻土/纸板/膜过滤）台账。"""
+
+    id: str
+    code: str
+    brewery_id: str
+    aid_type: str
+    area_m2: float
+    active_run_id: str | None = None
+    updated_at: str = ""
+
+
+@dataclass
+class FilterRun(DocMixin):
+    """一次成品过滤运行的当前状态。"""
+
+    id: str
+    unit_id: str
+    batch_id: str
+    brewery_id: str
+    target_volume_l: float
+    stage: str = FilterStage.PRECOAT.value
+    precoat_g: float = 0.0
+    precoat_confirmed_at: str | None = None
+    pace_hl_h: float = 0.0
+    filtered_l: float = 0.0
+    last_turbidity_ebc: float | None = None
+    last_dp_bar: float | None = None
+    last_flow_hl_h: float | None = None
+    good_streak: int = 0
+    divert_streak: int = 0
+    body_aid_g: float = 0.0
+    reading_count: int = 0
+    verdict: str | None = None
+    certificate_id: str | None = None
+    ended_reason: str | None = None
+    operator: str = ""
+    started_at: str = ""
+    ended_at: str | None = None
+    updated_at: str = ""
+
+
+@dataclass
+class FilterReading(DocMixin):
+    """一次浊度、压差与流量采样。"""
+
+    id: str
+    run_id: str
+    batch_id: str
+    turbidity_ebc: float
+    dp_bar: float
+    flow_hl_h: float
+    cumulative_l: float
+    stage: str
+    zone: str
+    diverted: bool
+    taken_at: str
+
+
+@dataclass
+class AidDose(DocMixin):
+    """一次助剂（硅藻土等）投加记录。"""
+
+    id: str
+    run_id: str
+    batch_id: str
+    phase: str
+    aid_type: str
+    amount_g: float
+    basis_g_hl: float | None = None
+    advised: bool = False
+    operator: str = ""
+    dosed_at: str = ""
+
+
+@dataclass
+class FilterCertificate(DocMixin):
+    """过滤合格凭证：合格放行或判返工的依据。"""
+
+    id: str
+    run_id: str
+    batch_id: str
+    unit_id: str
+    verdict: str
+    final_turbidity_ebc: float
+    final_dp_bar: float
+    filtered_l: float
+    target_volume_l: float
+    body_aid_g: float
+    reading_count: int
+    released_streak: int
+    issued_at: str
+    operator: str
+    reason: str = ""
+
+
+@dataclass
 class Alarm(DocMixin):
     """告警记录。"""
 
@@ -390,6 +505,8 @@ class Batch(DocMixin):
     boil_id: str | None = None
     tank_id: str | None = None
     cip_certificate_id: str | None = None
+    filter_run_id: str | None = None
+    filter_certificate_id: str | None = None
     priority: str = "normal"
     notes: str = ""
     abort_reason: str | None = None

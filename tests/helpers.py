@@ -80,3 +80,15 @@ def sanitize_tank(app: Application, tank_id: str) -> dict[str, Any]:
 
 def first_tank(app: Application) -> str:
     return str(app.registry.tanks.list_tanks()[0]["id"])
+
+
+def mature_batch(app: Application, batch_id: str, tank_id: str) -> None:
+    """把批次从成熟前推进到成熟（含接种发酵）。"""
+
+    brewing = app.registry.brewing
+    brewing.pitch_yeast(batch_id, tank_id, 10.0, 20.0, "tester")
+    brewing.mature_batch(batch_id, tank_id, 7.0, "tester")
+
+
+def first_filter_unit(app: Application) -> str:
+    return str(app.registry.filtering.list_units()[0]["id"])

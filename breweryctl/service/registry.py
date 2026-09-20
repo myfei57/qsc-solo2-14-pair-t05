@@ -12,6 +12,7 @@ from ..domain.boil import BoilKettle
 from ..domain.cip import CIPService
 from ..domain.co2 import CO2Controller
 from ..domain.ferment import FermentTankService
+from ..domain.filter import FilterService
 from ..domain.hop import HopSchedule
 from ..domain.mash import MashController
 from ..domain.ns import NamespaceRegistry
@@ -21,6 +22,7 @@ from ..domain.wort import WortSystem
 from ..persistence.store import FileStore
 from .brewing import BrewingService
 from .control import ControlService
+from .filtration import FiltrationService
 from .maintenance import MaintenanceService
 from .telemetry import TelemetryService
 
@@ -43,6 +45,7 @@ class ComponentRegistry:
         self.temp = TemperatureController(self.store, self.settings, self.clock)
         self.co2 = CO2Controller(self.store, self.settings, self.clock, self.alarms)
         self.cip = CIPService(self.store, self.settings, self.clock, self.alarms)
+        self.filtering = FilterService(self.store, self.settings, self.clock, self.alarms)
         self.tanks = FermentTankService(
             self.store, self.settings, self.clock, self.cip, self.co2, self.alarms
         )
@@ -65,6 +68,7 @@ class ComponentRegistry:
         self.control = ControlService(self.temp, self.co2, self.alarms, self.audit)
         self.telemetry = TelemetryService(self.temp, self.alarms, self.audit)
         self.maintenance = MaintenanceService(self.cip, self.tanks, self.audit)
+        self.filtration = FiltrationService(self.filtering, self.audit)
 
     def bootstrap(self) -> dict[str, Any]:
         """确保存在可运行的默认命名空间、罐体、探头与配方。"""
@@ -74,6 +78,7 @@ class ComponentRegistry:
             "lines": 0,
             "tanks": 0,
             "probes": 0,
+            "filter_units": 0,
             "recipe": None,
             "recovered": None,
         }
@@ -103,6 +108,9 @@ class ComponentRegistry:
             self.temp.register_probe(str(brewery["id"]), "糖化锅", 65.0)
             self.temp.register_probe(str(brewery["id"]), "发酵罐", 10.0)
             created["probes"] = 2
+        if not self.filtering.list_units(str(brewery["id"])):
+            self.filtering.register_unit(str(brewery["id"]), 1, "diatomaceous_earth", 12.0)
+            created["filter_units"] = 1
         if not self.recipes.list():
             recipe = self._seed_recipe(str(brewery["id"]))
             created["recipe"] = recipe["id"]
@@ -128,6 +136,7 @@ class ComponentRegistry:
             "mash": self.mash.summary(),
             "boil": self.boil.summary(),
             "ferment": self.tanks.summary(),
+            "filtration": self.filtration.summary(),
             "maintenance": self.maintenance.summary(),
             "control": self.control.summary(),
             "alarms": self.alarms.summary(),

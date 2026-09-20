@@ -171,6 +171,46 @@ async function initCipPage() {
   await refreshCertificate();
 }
 
+async function loadFilterUnits() {
+  const payload = await apiGet("/api/filtration/units");
+  const select = element("filter-unit");
+  select.innerHTML = "";
+  payload.units.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.code + " · " + item.aid_type;
+    select.appendChild(option);
+  });
+}
+
+async function loadMatureBatches() {
+  const payload = await apiGet("/api/batches?stage=maturing");
+  const select = element("filter-batch");
+  select.innerHTML = "";
+  payload.batches.forEach((item) => {
+    const option = document.createElement("option");
+    option.value = item.id;
+    option.textContent = item.code;
+    select.appendChild(option);
+  });
+}
+
+async function refreshRun() {
+  const runId = value("run-id");
+  if (!runId) {
+    return null;
+  }
+  const view = await apiGet("/api/filtration/runs/" + runId);
+  write("run-view", view);
+  return view;
+}
+
+async function initFilterPage() {
+  await loadBanner();
+  await loadFilterUnits();
+  await loadMatureBatches();
+}
+
 async function initAlarmsPage() {
   await loadBanner();
   await loadAlarms();
