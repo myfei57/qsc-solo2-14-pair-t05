@@ -124,3 +124,23 @@ def telemetry_view(reading: dict[str, Any]) -> dict[str, Any]:
         "quality": reading.get("quality"),
         "taken_at": reading.get("taken_at"),
     }
+
+
+def filter_run_summary(document: dict[str, Any]) -> dict[str, Any]:
+    """过滤运行列表项。"""
+
+    verdict = document.get("verdict") or {}
+    return {
+        "id": document.get("id"),
+        "batch_id": document.get("batch_id"),
+        "stage": document.get("stage"),
+        "mode": document.get("mode"),
+        "target_volume_l": document.get("target_volume_l"),
+        "filtered_volume_l": document.get("filtered_volume_l"),
+        "dose_rate_g_m3": document.get("dose_rate_g_m3"),
+        "flow_setpoint_m3h": document.get("flow_setpoint_m3h"),
+        "breakthrough_events": document.get("breakthrough_events"),
+        "passed": verdict.get("passed"),
+        "started_at": document.get("started_at"),
+        "finished_at": document.get("finished_at"),
+    }

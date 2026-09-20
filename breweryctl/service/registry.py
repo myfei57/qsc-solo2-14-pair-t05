@@ -12,6 +12,7 @@ from ..domain.boil import BoilKettle
 from ..domain.cip import CIPService
 from ..domain.co2 import CO2Controller
 from ..domain.ferment import FermentTankService
+from ..domain.filtration import FiltrationController
 from ..domain.hop import HopSchedule
 from ..domain.mash import MashController
 from ..domain.ns import NamespaceRegistry
@@ -21,6 +22,7 @@ from ..domain.wort import WortSystem
 from ..persistence.store import FileStore
 from .brewing import BrewingService
 from .control import ControlService
+from .filtration import FiltrationService
 from .maintenance import MaintenanceService
 from .telemetry import TelemetryService
 
@@ -65,6 +67,8 @@ class ComponentRegistry:
         self.control = ControlService(self.temp, self.co2, self.alarms, self.audit)
         self.telemetry = TelemetryService(self.temp, self.alarms, self.audit)
         self.maintenance = MaintenanceService(self.cip, self.tanks, self.audit)
+        self.filtration = FiltrationController(self.store, self.settings, self.clock, self.alarms)
+        self.filter_service = FiltrationService(self.filtration, self.audit)
 
     def bootstrap(self) -> dict[str, Any]:
         """确保存在可运行的默认命名空间、罐体、探头与配方。"""
@@ -128,6 +132,7 @@ class ComponentRegistry:
             "mash": self.mash.summary(),
             "boil": self.boil.summary(),
             "ferment": self.tanks.summary(),
+            "filtration": self.filtration.summary(),
             "maintenance": self.maintenance.summary(),
             "control": self.control.summary(),
             "alarms": self.alarms.summary(),

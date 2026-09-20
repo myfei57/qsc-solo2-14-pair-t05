@@ -52,6 +52,13 @@ ROUTES: tuple[tuple[str, str], ...] = (
     ("POST", "/api/control/temperature"),
     ("GET", "/api/control/temperature/{batch_id}/readiness"),
     ("GET", "/api/control/temperature/{batch_id}/progress"),
+    ("GET", "/api/filtration/runs"),
+    ("POST", "/api/filtration/runs"),
+    ("GET", "/api/filtration/runs/{run_id}"),
+    ("POST", "/api/filtration/runs/{run_id}/precoat"),
+    ("POST", "/api/filtration/runs/{run_id}/sample"),
+    ("POST", "/api/filtration/runs/{run_id}/finish"),
+    ("POST", "/api/filtration/runs/{run_id}/abort"),
     ("GET", "/api/telemetry/probes/{probe_id}/health"),
     ("GET", "/api/telemetry/probes/{probe_id}/report"),
     ("POST", "/api/telemetry/probes/{probe_id}/calibrate"),
@@ -409,6 +416,63 @@ class ApiRouter:
     ) -> dict[str, Any]:
         current = _required_number(_first(query, "current_c"), field="current_c")
         return self.registry.control.cooling_progress(params["batch_id"], current)
+
+    def _handle_GET_api_filtration_runs(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        items = self.registry.filtration.list_runs(brewery_id=_first(query, "brewery_id"))
+        return {
+            "runs": [serializers.filter_run_summary(item) for item in items],
+            "summary": self.registry.filtration.summary(),
+        }
+
+    def _handle_POST_api_filtration_runs(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        run = self.registry.filter_service.start_run(
+            body.get("brewery_id"),
+            body.get("batch_id"),
+            body.get("target_volume_l"),
+            body.get("actor"),
+        )
+        return {"run": serializers.filter_run_summary(run)}
+
+    def _handle_GET_api_filtration_runs_run_id(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filtration.status(params["run_id"])
+
+    def _handle_POST_api_filtration_runs_run_id_precoat(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        run = self.registry.filter_service.confirm_precoat(params["run_id"], body.get("actor"))
+        return {"run": serializers.filter_run_summary(run)}
+
+    def _handle_POST_api_filtration_runs_run_id_sample(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        return self.registry.filter_service.ingest(
+            params["run_id"],
+            body.get("turbidity_ntu"),
+            body.get("dp_bar"),
+            body.get("flow_m3h"),
+            body.get("actor"),
+        )
+
+    def _handle_POST_api_filtration_runs_run_id_finish(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        result = self.registry.filter_service.finish(params["run_id"], body.get("actor"))
+        return {
+            "run": serializers.filter_run_summary(result["run"]),
+            "verdict": result["verdict"],
+        }
+
+    def _handle_POST_api_filtration_runs_run_id_abort(
+        self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]
+    ) -> dict[str, Any]:
+        run = self.registry.filter_service.abort(params["run_id"], body.get("reason"), body.get("actor"))
+        return {"run": serializers.filter_run_summary(run)}
 
     def _handle_GET_api_telemetry_probes_probe_id_health(
         self, params: dict[str, str], query: dict[str, list[str]], body: dict[str, Any]

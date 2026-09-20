@@ -57,6 +57,25 @@ class CipStage(str, Enum):
     COMPLETE = "complete"
 
 
+class FilterStage(str, Enum):
+    """成品过滤运行状态机。"""
+
+    PRECOAT = "precoat"
+    FILTERING = "filtering"
+    RECIRCULATING = "recirculating"
+    COMPLETE = "complete"
+    FAILED = "failed"
+    ABORTED = "aborted"
+
+
+class FilterMode(str, Enum):
+    """过滤出酒去向。"""
+
+    FORWARD = "forward"
+    RECIRCULATE = "recirculate"
+    HOLD = "hold"
+
+
 class HopStatus(str, Enum):
     """酒花添加状态。"""
 
@@ -343,8 +362,50 @@ class CipCertificate(DocMixin):
 
 
 @dataclass
+class FilterRun(DocMixin):
+    """一批成品酒的过滤运行记录。"""
+
+    id: str
+    batch_id: str
+    brewery_id: str
+    target_volume_l: float
+    stage: str = FilterStage.PRECOAT.value
+    mode: str = FilterMode.RECIRCULATE.value
+    flow_level: int = 3
+    dose_rate_g_m3: float = 0.0
+    flow_setpoint_m3h: float = 0.0
+    filtered_volume_l: float = 0.0
+    dose_total_kg: float = 0.0
+    breakthrough_events: int = 0
+    clear_streak: int = 0
+    max_turbidity_ntu: float = 0.0
+    max_dp_bar: float = 0.0
+    samples: int = 0
+    last_sample_at: str | None = None
+    last_flow_change_at: str | None = None
+    started_at: str = ""
+    finished_at: str | None = None
+    end_reason: str | None = None
+    verdict: dict[str, Any] | None = None
+    updated_at: str = ""
+
+
+@dataclass
+class FilterSample(DocMixin):
+    """过滤过程的一次浊度/压差采样。"""
+
+    id: str
+    run_id: str
+    turbidity_ntu: float
+    dp_bar: float
+    flow_m3h: float
+    stage: str
+    mode: str
+    taken_at: str
+
+
+@dataclass
 class Alarm(DocMixin):
-    """告警记录。"""
 
     id: str
     brewery_id: str
